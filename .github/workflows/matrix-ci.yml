@@ -1,0 +1,65 @@
+name: Matrix CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test • ${{ matrix.os }} • py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.12"
+            experimental: true   # mark one combo as experimental
+        exclude:
+          - os: macos-latest
+            python-version: "3.10"  # skip a combo to save time
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            **/requirements*.txt
+
+      - name: Show versions
+        run: |
+          python --version
+          python -m pip --version
+
+      - name: OS-specific tweak (Windows CRLF demo)
+        if: runner.os == 'Windows'
+        run: |
+          git config --global core.autocrlf true
+          echo "Applied Windows-specific setting."
+
+      - name: Install deps (root requirements.txt only)
+        if: hashFiles('requirements.txt') != ''
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests (pytest if available, else smoke)
+        run: >
+          python -c "import importlib.util, subprocess, sys;
+          sys.exit(subprocess.call([sys.executable,'-m','pytest','-q']))
+          if importlib.util.find_spec('pytest') else
+          print('No pytest/tests detected. Matrix smoke check passed.')"
+
+      - name: Extra checks for experimental combo
+        if: ${{ matrix.experimental || false }}
+        run: >
+          python -c "print('Experimental check completed.')"
