@@ -1,0 +1,11 @@
+# requirements.txt
+
+# Testing
+pytest==8.3.3
+
+# Linting / formatting (optional, good for CI)
+flake8==7.1.1
+black==24.8.0
+
+# Example runtime dependency (delete if not needed)
+requests==2.32.3
